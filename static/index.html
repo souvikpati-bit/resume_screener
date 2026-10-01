@@ -405,7 +405,7 @@ addEventListener("resize", () => document.querySelectorAll(".seg").forEach(s => 
 
 function renderStatic(){
   $("#stats").innerHTML = [["Screened","sDone","var(--ink)"],["Shortlist","sS","var(--short)"],["Borderline","sB","var(--border)"],["Not moving forward","sN","var(--no)"],["Emails sent","sSent","var(--blue)"],["Scoring now","sBusy","var(--lilac)"]]
-    .map(([l, id, c]) => `<div class="stat"><span class="dot" style="background:${c}"></span><div class="n" id="${id}">0</div><div class="l">${l}</div></div>`).join("");
+    .map(([l, id, c]) => `<div class="stat"><span class="dot" style="background:${c}"></span><div class="n" id="${id}">0</div><div class="l" id="${id}L">${l}</div></div>`).join("");
   seg("#roleSeg", [["All","All roles"],["PM","PM"],["Sr PM","Sr PM"]], () => ROLE, v => { ROLE = v; renderList(true); });
   seg("#bandSeg", [["All","All"],["SHORTLIST","Shortlist"],["BORDERLINE","Borderline"],["NOT MOVING FORWARD","Not moving"]], () => BAND, v => { BAND = v; renderList(true); });
 }
@@ -423,7 +423,11 @@ function render(){
   const {done, other} = sorted();
   const n = b => done.filter(c => c.result.band === b).length;
   countTo($("#sDone"), done.length); countTo($("#sS"), n("SHORTLIST")); countTo($("#sB"), n("BORDERLINE"));
-  countTo($("#sN"), n("NOT MOVING FORWARD")); countTo($("#sSent"), DATA.filter(c => c.sent.some(s => !s.test)).length);
+  countTo($("#sN"), n("NOT MOVING FORWARD"));
+  // Candidates emailed so far; test sends (delivered to you, not the candidate) are counted and labelled.
+  const realSent = DATA.filter(c => c.sent.some(s => !s.test)).length, testSent = DATA.filter(c => c.sent.length && !c.sent.some(s => !s.test)).length;
+  countTo($("#sSent"), realSent + testSent);
+  $("#sSentL").textContent = testSent ? `Emails sent · ${testSent} test` : "Emails sent";
   countTo($("#sBusy"), other.filter(c => c.status !== "error").length);
   const tot = Math.max(done.length, 1), w = {dS: n("SHORTLIST"), dB: n("BORDERLINE"), dN: n("NOT MOVING FORWARD")};
   for (const id in w) {
