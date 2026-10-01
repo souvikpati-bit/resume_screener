@@ -32,6 +32,13 @@ def session_token():
     return hmac.new(pw.encode(), b"screener-session-v1", hashlib.sha256).hexdigest() if pw else None
 
 
+def share_key():
+    """Secret for the private link (/?key=...) that signs a reviewer in without the password page.
+    Derived from the password, so changing DASHBOARD_PASSWORD also cancels the link."""
+    pw = S.env("DASHBOARD_PASSWORD")
+    return hmac.new(pw.encode(), b"screener-share-link-v1", hashlib.sha256).hexdigest()[:32] if pw else None
+
+
 LOGIN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign in</title><style>
 :root{--bg:#0e100f;--card:#1a1c1b;--line:#2c2f2d;--ink:#fffce1;--muted:#a8a693;--green:#0ae448}
@@ -121,6 +128,11 @@ class Handler(BaseHTTPRequestHandler):
         """Let the request through only when logged in; on Vercel also load fresh data from Supabase."""
         path = self.path.split("?")[0]
         if path == "/login" or path == "/logout":
+            return False
+        key = (parse_qs(self.path.partition("?")[2]).get("key") or [""])[0]
+        if key and share_key() and hmac.compare_digest(key, share_key()):
+            # private link: sign in and drop the key from the address bar
+            self._send(302, b"", headers={"Location": path, "Set-Cookie": self._cookie(session_token(), 30 * 86400)})
             return False
         if not self._authed():
             if path.startswith("/api/"):
