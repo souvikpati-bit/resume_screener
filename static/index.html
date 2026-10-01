@@ -100,6 +100,8 @@ h1 .m>span{display:inline-block}
 .prog{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:16px;opacity:0}
 .prog b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--blue))}
 .upmsg{font:500 12px var(--mono);color:var(--muted);margin-top:8px;min-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upmsg.done{font:500 14px var(--body);color:var(--ink);white-space:normal}
+.upmsg.done b{color:var(--green)}
 
 /* ---------- stats ---------- */
 .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
@@ -258,7 +260,10 @@ blockquote{margin:0;padding:10px 14px;border-left:2px solid var(--green);font-si
   .dsec{padding:14px 18px}
   .search{min-width:0;flex:1 1 100%}
   .boardhead .seg{overflow-x:auto;max-width:100%}
-  .dtop select.sel{max-width:130px}
+  .dtop{flex-wrap:wrap}
+  .dtop .file{order:9;flex-basis:100%}
+  .dtop select.sel{max-width:150px}
+  .drawer{overflow-x:hidden}
 }
 @media (prefers-reduced-motion:reduce){.shim,.pulse{animation:none}}
 </style>
@@ -751,14 +756,17 @@ async function upload(files){
   if (!files.length) return toast("Only PDF, DOCX or TXT files");
   const prog = $("#prog"), bar = prog.querySelector("b"), msg = $("#upmsg");
   prog.style.opacity = 1; bar.style.width = "0";
-  let ok = 0, dup = 0, finished = 0, next = 0; const bad = [];
+  let ok = 0, dup = 0, finished = 0, next = 0; const bad = [], ids = [];
+  msg.className = "upmsg";
   // 3 at a time: when hosted, each upload waits while its resume is scored
   const worker = async () => {
     while (next < files.length) {
       const f = files[next++];
-      msg.textContent = `Uploading & scoring ${Math.min(next, files.length)} / ${files.length} · ${f.name}`;
-      try { const j = await api("POST", "/api/upload", {name: f.name, data: await b64(f)}); j.duplicate ? dup++ : ok++; }
-      catch (e) { bad.push(`${f.name}: ${e.message}`); }
+      msg.innerHTML = `<span class="pulse"></span>Reading & scoring ${files.length > 1 ? `${Math.min(next, files.length)} of ${files.length}` : `“${esc(f.name)}”`}… about 20 seconds each`;
+      try {
+        const j = await api("POST", "/api/upload", {name: f.name, data: await b64(f)});
+        j.duplicate ? dup++ : ok++; ids.push({id: j.id, dup: j.duplicate});
+      } catch (e) { bad.push(`${f.name}: ${e.message}`); }
       finished++;
       const pct = (100 * finished / files.length) + "%";
       if (G) G.to(bar, {width: pct, duration: .3}); else bar.style.width = pct;
@@ -766,10 +774,24 @@ async function upload(files){
     }
   };
   await Promise.all([worker(), worker(), worker()]);
-  msg.textContent = `Added ${ok}` + (dup ? ` · ${dup} already uploaded` : "") + (bad.length ? ` · ${bad.length} failed` : "");
+  await load();
   setTimeout(() => { if (G) G.to(prog, {opacity: 0, duration: .5}); else prog.style.opacity = 0; }, 1500);
-  if (bad.length) alert(bad.join("\n"));
-  load();
+  if (bad.length) alert("Couldn't upload:\n" + bad.join("\n"));
+  // Show the result straight away: one file opens its card; several get a summary.
+  const describe = x => {
+    const c = DATA.find(d => d.id === x.id);
+    if (!c) return "";
+    if (c.status !== "done") return c.status === "error" ? `Couldn't score “${esc(c.filename)}”. Open it and press Rescore.` : `Scoring “${esc(c.filename)}”… its card updates when done.`;
+    const r = c.result;
+    return `${x.dup ? "Already uploaded earlier" : "✓ Scored"}: <b>${esc(r.candidate.name)}</b> · ${r.total}/24 · ${bLabel(r.band)}`;
+  };
+  if (ids.length === 1) {
+    msg.innerHTML = describe(ids[0]);
+    openDrawer(ids[0].id);
+  } else if (ids.length) {
+    msg.innerHTML = `✓ ${ok} new scored` + (dup ? ` · ${dup} already uploaded` : "") + (bad.length ? ` · ${bad.length} failed` : "") + " · click any name below to see the result";
+  }
+  msg.className = "upmsg done";
 }
 $("#q").addEventListener("input", () => renderList(true));
 
