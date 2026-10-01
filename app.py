@@ -58,7 +58,7 @@ def config():
     provider = S.env("LLM_PROVIDER", "claude").lower()
     model = S.env("GEMINI_MODEL", "gemini-3.5-flash") if provider == "gemini" else S.env("CLAUDE_MODEL", "claude-opus-5")
     key_ok = bool(S.env("GEMINI_API_KEY")) if provider == "gemini" else bool(S.env("ANTHROPIC_API_KEY"))
-    return {"provider": provider, "model": model, "llm_key_set": key_ok, "smtp_ready": S.smtp_ready(), "email_via": S.email_provider(), "test_to": S.test_recipient(),
+    return {"provider": provider, "model": model, "llm_key_set": key_ok, "login": bool(session_token()), "smtp_ready": S.smtp_ready(), "email_via": S.email_provider(), "test_to": S.test_recipient(),
             "demo": bool(S.env("DEMO_MODE")), "sender": S.env("SENDER_NAME", "Arjun"), "company": S.env("COMPANY_NAME", "Kargo"),
             "params": [{"key": k, "label": l, "weight": w} for k, l, w in S.PARAMS], "max": S.MAX_WEIGHTED}
 
@@ -159,8 +159,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
-        if path == "/login":
-            return self._send(302, b"", headers={"Location": "/"}) if self._authed() and session_token() else self._login_page()
+        if path == "/login":  # with no DASHBOARD_PASSWORD there is nothing to sign in to
+            return self._send(302, b"", headers={"Location": "/"}) if self._authed() or not session_token() else self._login_page()
         if path == "/logout":
             return self._send(302, b"", headers={"Location": "/login", "Set-Cookie": self._cookie("", 0)})
         if not self._guard():

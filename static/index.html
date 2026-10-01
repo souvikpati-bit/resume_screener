@@ -293,7 +293,7 @@ blockquote{margin:0;padding:10px 14px;border-left:2px solid var(--green);font-si
   <span class="chip" id="mailChip"><i></i><span>…</span></span>
   <button class="btn ghost icon" id="themeBtn" title="Switch light / dark" aria-label="Switch light or dark theme">◐</button>
   <a class="btn hide-sm" href="/api/export.csv">Export CSV</a>
-  <a class="btn ghost hide-sm" href="/logout" title="Sign out">Sign out</a>
+  <a class="btn ghost hide-sm" href="/logout" id="signOut" title="Sign out" hidden>Sign out</a>
   <button class="btn go magnetic" onclick="picker.click()">Upload resumes</button>
   <input type="file" id="picker" multiple accept=".pdf,.docx,.txt" hidden>
 </div></nav>
@@ -435,6 +435,7 @@ function renderStatic(){
 function render(){
   if (CFG) {
     $("#company").textContent = "for " + CFG.company;
+    $("#signOut").hidden = !CFG.login;
     const mc = $("#modelChip"); mc.className = "chip " + (CFG.llm_key_set ? "ok" : "bad");
     mc.querySelector("span").textContent = CFG.demo ? "Demo scorer" : CFG.llm_key_set ? CFG.model : `${CFG.provider}: no API key`;
     const ml = $("#mailChip"); ml.className = "chip " + (CFG.smtp_ready ? "ok" : "");
