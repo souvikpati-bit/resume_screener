@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hiring Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/Flip.min.js"></script>
+<style>
+:root{
+  --bg:#0e100f; --bg2:#141615; --surface:#1a1c1b; --surface2:#222523; --line:#2c2f2d; --line2:#3a3e3b;
+  --ink:#fffce1; --muted:#a8a693; --faint:#6f6e62;
+  --green:#0ae448; --green-ink:#0e100f; --lilac:#9d95ff; --pink:#fec5fb; --orange:#ff8709; --blue:#00bae2;
+  --short:#0ae448; --border:#ffb03a; --no:#ff5c7a;
+  --short-bg:rgba(10,228,72,.12); --border-bg:rgba(255,176,58,.13); --no-bg:rgba(255,92,122,.13);
+  --glass:rgba(14,16,15,.72); --shadow:0 30px 80px -20px rgba(0,0,0,.6);
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#fffce1; --bg2:#f6f2d6; --surface:#ffffff; --surface2:#f7f4e2; --line:#e6e1c4; --line2:#d6d0ae;
+  --ink:#0e100f; --muted:#5e5c4f; --faint:#8f8c78;
+  --green:#08a838; --green-ink:#ffffff; --short:#07912f; --border:#b86e00; --no:#d42a4b;
+  --short-bg:rgba(8,168,56,.1); --border-bg:rgba(214,130,0,.12); --no-bg:rgba(212,42,75,.09);
+  --glass:rgba(255,252,225,.78); --shadow:0 30px 70px -25px rgba(60,50,0,.25);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#fffce1; --bg2:#f6f2d6; --surface:#ffffff; --surface2:#f7f4e2; --line:#e6e1c4; --line2:#d6d0ae;
+  --ink:#0e100f; --muted:#5e5c4f; --faint:#8f8c78;
+  --green:#08a838; --green-ink:#ffffff; --short:#07912f; --border:#b86e00; --no:#d42a4b;
+  --short-bg:rgba(8,168,56,.1); --border-bg:rgba(214,130,0,.12); --no-bg:rgba(212,42,75,.09);
+  --glass:rgba(255,252,225,.78); --shadow:0 30px 70px -25px rgba(60,50,0,.25);
+  color-scheme:light;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body.lock{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+::selection{background:var(--green);color:var(--green-ink)}
+
+/* ---------- background ---------- */
+.bgfx{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.28}
+.orb.o1{width:520px;height:520px;background:var(--green);top:-160px;left:-120px}
+.orb.o2{width:460px;height:460px;background:var(--lilac);top:120px;right:-160px}
+.orb.o3{width:380px;height:380px;background:var(--orange);top:520px;left:35%;opacity:.16}
+.grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:64px 64px;opacity:.35;-webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 10%,transparent 65%);mask-image:radial-gradient(ellipse at 50% 0%,#000 10%,transparent 65%)}
+.wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:0 28px}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);background:var(--glass);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:12px;height:66px}
+.logo{display:flex;align-items:center;gap:10px;font:800 19px var(--display);letter-spacing:-.02em;text-decoration:none}
+.mark{width:30px;height:30px;border-radius:9px;background:conic-gradient(from 0deg,var(--green),var(--blue),var(--lilac),var(--pink),var(--orange),var(--green));position:relative}
+.mark::after{content:"";position:absolute;inset:7px;border-radius:4px;background:var(--bg)}
+.logo small{font:500 13px var(--body);color:var(--muted);letter-spacing:0;margin-left:2px}
+.sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:7px;font:500 12px var(--body);padding:6px 11px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.chip.ok i{background:var(--green);box-shadow:0 0 10px var(--green)}
+.chip.bad{color:var(--no);border-color:color-mix(in srgb,var(--no) 40%,transparent)}
+.chip.bad i{background:var(--no)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line2);background:transparent;border-radius:99px;padding:9px 18px;font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .2s,border-color .2s,color .2s}
+.btn:hover{background:var(--surface2);border-color:var(--ink)}
+.btn.go{background:var(--green);color:var(--green-ink);border-color:var(--green)}
+.btn.go:hover{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn.armed,.btn.armed:hover{background:var(--orange);border-color:var(--orange);color:#0e100f}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface2)}
+.btn.danger:hover{color:var(--no);border-color:var(--no)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.icon{width:38px;height:38px;padding:0}
+
+/* ---------- hero ---------- */
+.hero{display:grid;grid-template-columns:1.25fr 1fr;gap:40px;align-items:end;padding:64px 0 40px}
+.eyebrow{font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--green);display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:26px;height:1px;background:currentColor}
+h1{font:800 clamp(44px,6.2vw,88px)/.95 var(--display);letter-spacing:-.045em;margin:18px 0 20px}
+h1 .m{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.1em;margin-bottom:-.1em}
+h1 .m>span{display:inline-block}
+.grad,.grad .m>span{background:linear-gradient(95deg,var(--green) 0%,var(--blue) 55%,var(--lilac) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{color:var(--muted);font-size:17px;max-width:520px;margin:0}
+.drop{position:relative;border-radius:28px;padding:30px;background:var(--surface);border:1px solid var(--line);overflow:hidden;cursor:pointer;min-height:230px;display:flex;flex-direction:column;justify-content:space-between;isolation:isolate}
+.drop::before{content:"";position:absolute;inset:0;background:radial-gradient(360px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--green) 22%,transparent),transparent 60%);opacity:0;transition:opacity .3s;z-index:-1}
+.drop:hover::before,.drop.over::before{opacity:1}
+.drop.over{border-color:var(--green)}
+.drop .ring{position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;border:1px dashed var(--line2);z-index:-1}
+.drop .ring.r2{width:320px;height:320px;right:-110px;top:-110px}
+.drop h3{font:700 26px/1.1 var(--display);letter-spacing:-.02em;margin:0 0 6px}
+.drop p{margin:0;color:var(--muted);font-size:14px}
+.plus{width:54px;height:54px;border-radius:16px;background:var(--green);color:var(--green-ink);display:grid;place-items:center;font:500 30px var(--display)}
+.prog{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:16px;opacity:0}
+.prog b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--blue))}
+.upmsg{font:500 12px var(--mono);color:var(--muted);margin-top:8px;min-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px 18px 16px;position:relative;overflow:hidden}
+.stat .n{font:800 40px/1 var(--display);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.stat .l{font-size:12.5px;color:var(--muted);margin-top:8px}
+.stat .dot{position:absolute;top:18px;right:18px;width:8px;height:8px;border-radius:50%}
+.distro{display:flex;height:10px;border-radius:10px;overflow:hidden;background:var(--line);margin-bottom:10px;gap:2px}
+.distro span{height:100%;width:0}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:34px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:0}
+.setup{border:1px solid color-mix(in srgb,var(--no) 45%,transparent);background:var(--no-bg);border-radius:18px;padding:14px 18px;margin-bottom:18px;font-size:14px}
+.setup code{font:500 13px var(--mono);background:var(--surface2);padding:2px 6px;border-radius:6px}
+
+/* ---------- board ---------- */
+.boardhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.boardhead h2{font:800 34px/1 var(--display);letter-spacing:-.035em;margin:0}
+.boardhead h2 span{color:var(--faint)}
+.seg{position:relative;display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:4px}
+.seg button{position:relative;z-index:1;border:0;background:none;border-radius:99px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:color .25s}
+.seg button.on{color:var(--green-ink)}
+.seg .ind{position:absolute;z-index:0;top:4px;bottom:4px;left:0;border-radius:99px;background:var(--green);width:0}
+.search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:0 14px;height:42px;min-width:230px}
+.search input{border:0;background:none;outline:none;width:100%;font-size:14px}
+.search kbd{font:500 11px var(--mono);color:var(--faint);border:1px solid var(--line2);border-radius:5px;padding:1px 5px}
+.board{background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;margin-bottom:28px}
+.cols,.row{display:grid;grid-template-columns:54px minmax(200px,1.7fr) 74px minmax(170px,1.3fr) 150px 164px 128px;align-items:center;gap:12px;padding:0 22px}
+.cols{height:46px;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--line)}
+.row{min-height:74px;border-bottom:1px solid var(--line);cursor:pointer;position:relative;transition:background .2s}
+.row:last-child{border-bottom:0}
+.row::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:var(--green);transform:scaleY(0);transition:transform .25s}
+.row:hover,.row.sel{background:var(--surface2)}
+.row:hover::before,.row.sel::before{transform:scaleY(1)}
+.rank{font:700 20px var(--mono);color:var(--faint);font-variant-numeric:tabular-nums}
+.row.top .rank{color:var(--ink)}
+.who{display:flex;align-items:center;gap:12px;min-width:0}
+.av{flex:none;width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font:700 14px var(--display);color:#0e100f}
+.av.short{background:linear-gradient(135deg,#0ae448,#00bae2)}
+.av.border{background:linear-gradient(135deg,#ffc15e,#ff8709)}
+.av.no{background:linear-gradient(135deg,#fec5fb,#ff5c7a)}
+.av.pending{background:var(--surface2);color:var(--muted);border:1px dashed var(--line2)}
+.who>div{min-width:0}
+.who .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .tt{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.warn{color:var(--border);font-size:12px;margin-left:5px}
+.tag{font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line2);border-radius:7px;padding:3px 7px;justify-self:start;white-space:nowrap}
+.bar{display:flex;align-items:center;gap:12px}
+.bar .tr{flex:1;height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.bar .fl{height:100%;border-radius:8px}
+.bar .v{font:700 17px var(--mono);width:30px;text-align:right;font-variant-numeric:tabular-nums}
+.band{display:inline-flex;align-items:center;gap:6px;font:600 12px var(--body);padding:5px 10px;border-radius:99px;white-space:nowrap;justify-self:start}
+.band::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.band.short{color:var(--short);background:var(--short-bg)}
+.band.border{color:var(--border);background:var(--border-bg)}
+.band.no{color:var(--no);background:var(--no-bg)}
+.heat{display:flex;gap:4px}
+.heat span{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font:700 11px var(--mono);background:var(--surface2);color:var(--faint)}
+.heat .s3{background:var(--green);color:var(--green-ink)}
+.heat .s2{background:color-mix(in srgb,var(--green) 38%,var(--surface2));color:var(--ink)}
+.heat .s1{background:color-mix(in srgb,var(--green) 13%,var(--surface2));color:var(--muted)}
+.st{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.sent{color:var(--short);font-weight:600}
+.st.err{color:var(--no)}
+.shim{height:8px;border-radius:8px;background:linear-gradient(90deg,var(--line) 0%,var(--line2) 50%,var(--line) 100%);background-size:200% 100%;animation:sh 1.3s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:7px;animation:pl 1.2s ease-in-out infinite}
+@keyframes pl{50%{opacity:.25;transform:scale(.7)}}
+.empty{padding:80px 20px;text-align:center}
+.empty h3{font:800 30px var(--display);letter-spacing:-.03em;margin:18px 0 6px}
+.empty p{color:var(--muted);margin:0}
+.emptyfx{position:relative;width:120px;height:120px;margin:0 auto}
+.emptyfx span{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--green);opacity:.5}
+.foot{color:var(--faint);font-size:12.5px;text-align:center;padding:0 0 48px}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(5,6,5,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:40;opacity:0;visibility:hidden}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100vw);background:var(--bg2);border-left:1px solid var(--line);z-index:41;overflow-y:auto;transform:translateX(105%);box-shadow:var(--shadow);overscroll-behavior:contain}
+.dtop{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:12px 18px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.dtop .file{font:500 12px var(--mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;min-width:0}
+.dtop .file:hover{color:var(--ink)}
+.dhero{display:flex;gap:24px;align-items:center;padding:28px 26px 6px}
+.dhero h2{font:800 36px/1 var(--display);letter-spacing:-.035em;margin:10px 0 8px}
+.dhero .meta{color:var(--muted);font-size:13.5px;line-height:1.6}
+.ringbox{position:relative;flex:none;width:128px;height:128px}
+.ringbox svg{transform:rotate(-90deg)}
+.ringbox .c{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ringbox .c b{font:800 40px/1 var(--display);letter-spacing:-.04em;display:block}
+.ringbox .c small{font:500 12px var(--mono);color:var(--muted)}
+.dsec{padding:16px 26px}
+.dsec h4{font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:0 0 12px;display:flex;align-items:center;gap:10px}
+.dsec h4::after{content:"";flex:1;height:1px;background:var(--line)}
+select.sel{background:var(--surface);border:1px solid var(--line2);border-radius:99px;padding:8px 12px;font-size:13px;font-weight:500;cursor:pointer}
+.note{border-radius:16px;padding:12px 16px;font-size:13.5px;margin-bottom:10px;border:1px solid}
+.note.warn{background:var(--border-bg);border-color:color-mix(in srgb,var(--border) 35%,transparent)}
+.note.bad{background:var(--no-bg);border-color:color-mix(in srgb,var(--no) 35%,transparent)}
+.note.ok{background:var(--short-bg);border-color:color-mix(in srgb,var(--short) 35%,transparent)}
+.assess{color:var(--muted);font-size:13px}
+.assess b{color:var(--ink)}
+.why{font:500 19px/1.45 var(--display);letter-spacing:-.01em;margin:0}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:10px}
+.ptop{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.pk{font:700 12px var(--mono);color:var(--green-ink);background:var(--green);border-radius:7px;padding:3px 7px}
+.pl{font-weight:600;flex:1}
+.pw{font:500 12px var(--mono);color:var(--faint)}
+.meter{display:flex;gap:4px}
+.meter i{width:26px;height:7px;border-radius:4px;background:var(--line2);transform-origin:left}
+.meter i.on{background:var(--green)}
+blockquote{margin:0;padding:10px 14px;border-left:2px solid var(--green);font-size:14px;background:var(--bg2);border-radius:0 10px 10px 0}
+.vf{display:inline-block;font:600 11px var(--mono);margin-top:8px;padding:2px 8px;border-radius:6px}
+.vf.ok{color:var(--short);background:var(--short-bg)}
+.vf.no{color:var(--border);background:var(--border-bg)}
+.rs{font-size:13px;color:var(--muted);margin-top:6px}
+.none{font-size:13.5px;color:var(--faint);font-style:italic}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.box b{font:700 15px var(--display)}
+.box ul{margin:8px 0 0;padding-left:18px;font-size:14px}
+.box li{margin:5px 0}
+.box li::marker{color:var(--green)}
+.summary{font-size:15px;margin:0 0 12px}
+.qc{display:flex;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-top:10px}
+.qn{flex:none;width:30px;height:30px;border-radius:10px;background:var(--lilac);color:#0e100f;display:grid;place-items:center;font:700 13px var(--mono)}
+.qt{font-weight:600;font-size:15px}
+.qm{font-size:13px;color:var(--muted);margin-top:6px}
+.qm b{color:var(--ink);font-weight:600}
+.f{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.f label{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.f input,.f textarea{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 14px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.f input:focus,.f textarea:focus{border-color:var(--green);box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 16%,transparent)}
+.f textarea{min-height:250px;resize:vertical;line-height:1.6;font-size:14.5px}
+.sendrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:24px}
+.hint{font-size:12.5px;color:var(--muted)}
+.spark{position:fixed;width:8px;height:8px;border-radius:2px;pointer-events:none;z-index:60}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,0);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:99px;font-weight:600;font-size:14px;z-index:70;box-shadow:var(--shadow);opacity:0;pointer-events:none}
+
+@media (max-width:1180px){
+  .cols,.row{grid-template-columns:44px minmax(180px,1.6fr) 64px minmax(140px,1.2fr) 140px 118px}
+  .cols>:nth-child(6),.row>:nth-child(6){display:none}
+  .stats{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:960px){ nav .chip,.logo small{display:none} }
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;padding-top:40px}
+  .cols{display:none}
+  .row{grid-template-columns:34px minmax(0,1fr) auto;grid-template-areas:"r w b" "r s s";row-gap:10px;padding:14px 16px}
+  .row>:nth-child(1){grid-area:r}.row>:nth-child(2){grid-area:w}.row>:nth-child(4){grid-area:s}.row>:nth-child(5){grid-area:b}
+  .row>:nth-child(3),.row>:nth-child(6),.row>:nth-child(7){display:none}
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  nav .chip,.hide-sm,.logo small{display:none}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stat .n{font-size:32px}
+  .two{grid-template-columns:1fr}
+  .dhero{flex-direction:column;align-items:flex-start;padding:22px 18px 6px}
+  .dsec{padding:14px 18px}
+  .search{min-width:0;flex:1 1 100%}
+  .boardhead .seg{overflow-x:auto;max-width:100%}
+  .dtop select.sel{max-width:130px}
+}
+@media (prefers-reduced-motion:reduce){.shim,.pulse{animation:none}}
+</style>
+</head>
+<body>
+<div class="bgfx"><div class="grid"></div><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div></div>
+
+<nav><div class="wrap">
+  <a class="logo" href="#"><span class="mark"></span>Screen<small id="company"></small></a>
+  <span class="sp"></span>
+  <span class="chip" id="modelChip"><i></i><span>…</span></span>
+  <span class="chip" id="mailChip"><i></i><span>…</span></span>
+  <button class="btn ghost icon" id="themeBtn" title="Switch light / dark" aria-label="Switch light or dark theme">◐</button>
+  <a class="btn hide-sm" href="/api/export.csv">Export CSV</a>
+  <a class="btn ghost hide-sm" href="/logout" title="Sign out">Sign out</a>
+  <button class="btn go magnetic" onclick="picker.click()">Upload resumes</button>
+  <input type="file" id="picker" multiple accept=".pdf,.docx,.txt" hidden>
+</div></nav>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">PM · Senior PM · Hiring</div>
+      <h1 id="headline">Hire people who've <span class="grad">done the job.</span></h1>
+      <p class="lede">Every resume is scored against your rubric and your best past hires, ranked, and briefed for interview, with invite or decline emails ready to send.</p>
+    </div>
+    <div class="drop" id="drop" onclick="picker.click()">
+      <span class="ring"></span><span class="ring r2"></span>
+      <div class="plus">+</div>
+      <div>
+        <h3>Drop resumes here</h3>
+        <p>PDF, DOCX or TXT, any number of files. Scoring starts right away.</p>
+        <div class="prog" id="prog"><b></b></div>
+        <div class="upmsg" id="upmsg"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="setup"></div>
+  <div class="stats" id="stats"></div>
+  <div class="distro" id="distro"><span id="dS" style="background:var(--short)"></span><span id="dB" style="background:var(--border)"></span><span id="dN" style="background:var(--no)"></span></div>
+  <div class="legend"><span><i style="background:var(--short)"></i>Shortlist · 17–24</span><span><i style="background:var(--border)"></i>Borderline · 12–16</span><span><i style="background:var(--no)"></i>Not moving forward · 0–11</span></div>
+
+  <div class="boardhead">
+    <h2>Leaderboard <span id="count"></span></h2>
+    <span class="sp"></span>
+    <div class="seg" id="roleSeg"></div>
+    <div class="seg" id="bandSeg"></div>
+    <label class="search"><span style="color:var(--faint)">⌕</span><input id="q" placeholder="Search candidates" aria-label="Search candidates"><kbd>/</kbd></label>
+  </div>
+  <div class="board">
+    <div class="cols"><span>#</span><span>Candidate</span><span>Role</span><span>Score / 24</span><span>Band</span><span>P1 – P6</span><span>Email</span></div>
+    <div id="list"></div>
+  </div>
+  <p class="foot">Scores are a first pass from the rubric. Check the evidence before deciding. The rubric was calibrated on 8 past hires.</p>
+</main>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer" aria-label="Candidate detail"></aside>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const G = (window.gsap && !RM) ? window.gsap : null;
+const FL = G && window.Flip ? window.Flip : null;
+if (FL) G.registerPlugin(FL);
+let DATA = [], CFG = null, SEL = null, ROLE = "All", BAND = "All", pollT = null, dirty = false;
+const seen = new Set(), doneSeen = new Set();
+let firstLoad = true, detailKey = "", drawerOpen = false;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const bk = b => b === "SHORTLIST" ? "short" : b === "BORDERLINE" ? "border" : "no";
+const bLabel = b => b === "SHORTLIST" ? "Shortlist" : b === "BORDERLINE" ? "Borderline" : "Not moving forward";
+const bColor = b => `var(--${bk(b)})`;
+const initials = n => (n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+if (G) G.set("#drawer", {xPercent: 105, x: 0});
+
+/* ---------- theme ---------- */
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#themeBtn").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  const next = cur === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("theme", next); } catch (e) {}
+  if (G) G.fromTo("#themeBtn", {rotate: 0}, {rotate: 180, duration: .5, ease: "power3.out"});
+};
+
+/* ---------- helpers ---------- */
+async function api(method, url, body){
+  const r = await fetch(url, {method, headers: {"Content-Type": "application/json"}, body: body ? JSON.stringify(body) : undefined});
+  if (r.status === 401) { location.href = "/login"; throw new Error("Please sign in again"); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+  return j;
+}
+function toast(m){
+  const t = $("#toast"); t.textContent = m;
+  if (!G) { t.style.opacity = 1; clearTimeout(t._h); t._h = setTimeout(() => t.style.opacity = 0, 2600); return; }
+  G.killTweensOf(t);
+  G.timeline().fromTo(t, {y: 40, opacity: 0}, {y: 0, opacity: 1, duration: .5, ease: "back.out(1.7)"}).to(t, {y: 20, opacity: 0, duration: .35, ease: "power2.in", delay: 2.2});
+}
+function countTo(el, v){
+  const from = +(el.dataset.v || 0); el.dataset.v = v;
+  if (!G || from === v) { el.textContent = v; return; }
+  const o = {n: from};
+  G.to(o, {n: v, duration: 1.3, ease: "power3.out", delay: firstLoad ? .8 : 0, onUpdate: () => el.textContent = Math.round(o.n)});
+}
+
+/* ---------- load & poll ---------- */
+async function load(){
+  try { const j = await api("GET", "/api/candidates"); DATA = j.candidates; CFG = j.config; }
+  catch (e) { toast("Can't reach the server"); }
+  const wasFirst = firstLoad;
+  if (wasFirst) intro();
+  render();
+  firstLoad = false;
+  clearTimeout(pollT);
+  pollT = setTimeout(load, DATA.some(c => c.status === "queued" || c.status === "scoring") ? 2000 : 15000);
+}
+function sorted(){
+  const done = DATA.filter(c => c.status === "done").sort((a, b) => b.result.total - a.result.total || a.result.candidate.name.localeCompare(b.result.candidate.name));
+  const other = DATA.filter(c => c.status !== "done").sort((a, b) => a.uploaded_at.localeCompare(b.uploaded_at));
+  return {done, other};
+}
+
+/* ---------- segmented controls with sliding indicator ---------- */
+function seg(sel, opts, get, set){
+  const el = $(sel);
+  el.innerHTML = `<span class="ind"></span>` + opts.map(([v, l]) => `<button type="button" data-v="${esc(v)}">${l}</button>`).join("");
+  const move = instant => {
+    const on = [...el.querySelectorAll("button")].find(b => b.dataset.v === get()) || el.querySelector("button");
+    el.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === on));
+    const ind = el.querySelector(".ind");
+    if (G && !instant) G.to(ind, {x: on.offsetLeft - 4, width: on.offsetWidth, duration: .45, ease: "power3.out"});
+    else if (G) G.set(ind, {x: on.offsetLeft - 4, width: on.offsetWidth});
+    else { ind.style.transform = `translateX(${on.offsetLeft - 4}px)`; ind.style.width = on.offsetWidth + "px"; }
+  };
+  el.querySelectorAll("button").forEach(b => b.onclick = () => { set(b.dataset.v); move(false); });
+  el._move = move;
+  requestAnimationFrame(() => move(true));
+  document.fonts && document.fonts.ready.then(() => move(true));
+}
+addEventListener("resize", () => document.querySelectorAll(".seg").forEach(s => s._move && s._move(true)));
+
+function renderStatic(){
+  $("#stats").innerHTML = [["Screened","sDone","var(--ink)"],["Shortlist","sS","var(--short)"],["Borderline","sB","var(--border)"],["Not moving forward","sN","var(--no)"],["Emails sent","sSent","var(--blue)"],["Scoring now","sBusy","var(--lilac)"]]
+    .map(([l, id, c]) => `<div class="stat"><span class="dot" style="background:${c}"></span><div class="n" id="${id}">0</div><div class="l">${l}</div></div>`).join("");
+  seg("#roleSeg", [["All","All roles"],["PM","PM"],["Sr PM","Sr PM"]], () => ROLE, v => { ROLE = v; renderList(true); });
+  seg("#bandSeg", [["All","All"],["SHORTLIST","Shortlist"],["BORDERLINE","Borderline"],["NOT MOVING FORWARD","Not moving"]], () => BAND, v => { BAND = v; renderList(true); });
+}
+
+/* ---------- render ---------- */
+function render(){
+  if (CFG) {
+    $("#company").textContent = "for " + CFG.company;
+    const mc = $("#modelChip"); mc.className = "chip " + (CFG.llm_key_set ? "ok" : "bad");
+    mc.querySelector("span").textContent = CFG.demo ? "Demo scorer" : CFG.llm_key_set ? CFG.model : `${CFG.provider}: no API key`;
+    const ml = $("#mailChip"); ml.className = "chip " + (CFG.smtp_ready ? "ok" : "");
+    ml.querySelector("span").textContent = !CFG.smtp_ready ? "Drafts only" : CFG.test_to ? "Email test mode · to you" : (CFG.email_via === "resend" ? "Email live · Resend" : "Email live");
+    $("#setup").innerHTML = CFG.demo ? `<div class="setup" style="border-color:color-mix(in srgb,var(--border) 45%,transparent);background:var(--border-bg)"><b>Demo mode.</b> Scores are random and nothing is emailed. Use this to try the dashboard; run <code>python app.py</code> with an API key for real scoring.</div>` : CFG.llm_key_set ? "" : `<div class="setup"><b>Add your API key to start scoring.</b> Copy <code>.env.example</code> to <code>.env</code>, set <code>${CFG.provider === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY"}</code>, then restart <code>python app.py</code>.</div>`;
+  }
+  const {done, other} = sorted();
+  const n = b => done.filter(c => c.result.band === b).length;
+  countTo($("#sDone"), done.length); countTo($("#sS"), n("SHORTLIST")); countTo($("#sB"), n("BORDERLINE"));
+  countTo($("#sN"), n("NOT MOVING FORWARD")); countTo($("#sSent"), DATA.filter(c => c.sent.some(s => !s.test)).length);
+  countTo($("#sBusy"), other.filter(c => c.status !== "error").length);
+  const tot = Math.max(done.length, 1), w = {dS: n("SHORTLIST"), dB: n("BORDERLINE"), dN: n("NOT MOVING FORWARD")};
+  for (const id in w) {
+    const pct = (100 * w[id] / tot) + "%";
+    if (G) G.to("#" + id, {width: pct, duration: 1.2, ease: "power3.inOut", delay: firstLoad ? .9 : 0}); else $("#" + id).style.width = pct;
+  }
+  renderList(!firstLoad);
+  if (drawerOpen && !dirty && JSON.stringify(DATA.find(x => x.id === SEL) || null) !== detailKey) renderDetail(false);
+}
+
+function matches(c){
+  const q = $("#q").value.trim().toLowerCase();
+  if (c.status === "done") {
+    const r = c.result;
+    if (ROLE !== "All" && r.candidate.role_assessed !== ROLE) return false;
+    if (BAND !== "All" && r.band !== BAND) return false;
+    return !q || (r.candidate.name + " " + r.candidate.current_title + " " + c.filename).toLowerCase().includes(q);
+  }
+  return BAND === "All" && (!q || c.filename.toLowerCase().includes(q));
+}
+
+function rowHTML(c, i){
+  if (c.status !== "done") {
+    const err = c.status === "error";
+    return `<div class="row pending ${SEL === c.id ? "sel" : ""}" data-flip-id="${c.id}" onclick="openDrawer('${c.id}')">
+      <span class="rank">–</span>
+      <div class="who"><span class="av pending">${err ? "!" : "…"}</span><div><div class="nm">${esc(c.filename)}</div><div class="tt">${err ? "Couldn't score. Open to retry." : c.status === "queued" ? "Waiting in queue" : "Reading and scoring against the rubric"}</div></div></div>
+      <span class="tag">${esc(c.role_hint || "auto")}</span>
+      ${err ? `<span class="st err" title="${esc(c.error)}">${esc(c.error)}</span>` : `<div class="shim"></div>`}
+      <span class="st">${err ? "" : `<span class="pulse"></span>${c.status === "queued" ? "Queued" : "Scoring"}`}</span><span></span><span></span></div>`;
+  }
+  const r = c.result, cd = r.candidate, k = bk(r.band);
+  const real = c.sent.filter(s => !s.test), em = real.length ? `<span class="st sent">✓ ${real.at(-1).kind === "invite" ? "Invited" : "Declined"}</span>`
+    : c.sent.length ? `<span class="st">✓ Test ${c.sent.at(-1).kind} sent</span>`
+    : `<span class="st">${c.decision === "invite" ? "Invite ready" : c.decision === "decline" ? "Decline ready" : "On hold"}</span>`;
+  return `<div class="row ${i < 3 ? "top" : ""} ${SEL === c.id ? "sel" : ""}" data-flip-id="${c.id}" onclick="openDrawer('${c.id}')">
+    <span class="rank">${String(i + 1).padStart(2, "0")}</span>
+    <div class="who"><span class="av ${k}">${esc(initials(cd.name))}</span><div><div class="nm">${esc(cd.name)}${r.unverified ? `<span class="warn" title="Some evidence quotes weren't found word for word in the CV">⚠</span>` : ""}</div><div class="tt">${esc(cd.current_title)}</div></div></div>
+    <span class="tag">${esc(cd.role_assessed)}</span>
+    <div class="bar"><div class="tr"><div class="fl" style="width:${r.pct}%;background:${bColor(r.band)}"></div></div><span class="v">${r.total}</span></div>
+    <span class="band ${k}">${bLabel(r.band)}</span>
+    <div class="heat">${r.params.map(p => `<span class="s${p.score}" title="${esc(p.key.toUpperCase() + " " + p.label)}: ${p.score}/3">${p.score}</span>`).join("")}</div>
+    ${em}</div>`;
+}
+
+function renderList(flip){
+  const list = $("#list"), {done, other} = sorted();
+  const doneF = done.filter(matches), rows = [...other.filter(matches), ...doneF];
+  const idx = new Map(doneF.map((c, i) => [c.id, i]));
+  const state = (FL && flip && list.querySelector(".row")) ? FL.getState(list.querySelectorAll(".row")) : null;
+  $("#count").textContent = rows.length || "";
+  if (!rows.length) {
+    list.innerHTML = DATA.length ? `<div class="empty"><h3>Nothing matches</h3><p>Try a different filter or search.</p></div>`
+      : `<div class="empty"><div class="emptyfx"><span></span><span></span><span></span></div><h3>No resumes yet</h3><p>Drop files in the box above and the leaderboard fills itself.</p></div>`;
+    if (G && !DATA.length) G.fromTo(".emptyfx span", {scale: .2, opacity: .9}, {scale: 1.3, opacity: 0, duration: 2.4, stagger: .8, repeat: -1, ease: "power2.out"});
+    return;
+  }
+  list.innerHTML = rows.map(c => rowHTML(c, idx.get(c.id))).join("");
+  const fresh = [], freshDone = [];
+  list.querySelectorAll(".row").forEach(el => {
+    const id = el.dataset.flipId, c = DATA.find(x => x.id === id);
+    if (!seen.has(id)) fresh.push(el);
+    if (c.status === "done" && !doneSeen.has(id)) freshDone.push(el);
+    seen.add(id); if (c.status === "done") doneSeen.add(id);
+  });
+  if (!G) return;
+  const base = firstLoad ? 1.1 : 0;
+  if (state) FL.from(state, {targets: list.querySelectorAll(".row"), duration: .6, ease: "power3.inOut", absolute: false, nested: true,
+    onEnter: els => G.fromTo(els, {opacity: 0, y: 18}, {opacity: 1, y: 0, duration: .5, stagger: .035, ease: "power3.out"})});
+  else if (fresh.length) G.from(fresh, {opacity: 0, y: 26, duration: .7, stagger: .045, ease: "power3.out", delay: base});
+  freshDone.forEach((el, i) => {
+    const d = base + .15 + Math.min(i, 20) * .045;
+    G.from(el.querySelector(".fl"), {width: 0, duration: 1.2, ease: "power3.out", delay: d});
+    const v = el.querySelector(".bar .v"), tgt = +v.textContent, o = {n: 0};
+    v.textContent = 0;
+    G.to(o, {n: tgt, duration: 1.2, ease: "power3.out", delay: d, onUpdate: () => v.textContent = Math.round(o.n)});
+    G.from(el.querySelectorAll(".heat span"), {scale: 0, duration: .4, stagger: .04, ease: "back.out(2.2)", delay: d + .1});
+    if (!firstLoad && !fresh.includes(el)) G.from(el.querySelector(".av"), {rotate: -90, scale: .4, duration: .7, ease: "back.out(2)"});
+  });
+}
+
+/* ---------- intro ---------- */
+function splitHeadline(){
+  const wrapWords = node => {
+    [...node.childNodes].forEach(n => {
+      if (n.nodeType !== 3) return wrapWords(n);
+      const frag = document.createDocumentFragment();
+      n.textContent.split(/(\s+)/).forEach(part => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) return frag.appendChild(document.createTextNode(part));
+        const m = document.createElement("span"); m.className = "m";
+        const s = document.createElement("span"); s.textContent = part; m.appendChild(s); frag.appendChild(m);
+      });
+      n.replaceWith(frag);
+    });
+  };
+  wrapWords($("#headline"));
+}
+function intro(){
+  if (!G) return;
+  splitHeadline();
+  const tl = G.timeline({defaults: {ease: "power4.out"}});
+  // Safety net: if the browser throttles animation (background tab, slow machine), show everything anyway.
+  setTimeout(() => { tl.progress(1); G.globalTimeline.getChildren(false, true, false).forEach(t => { if (t !== tl && !t.vars.repeat && t.progress() < 1) t.progress(1); }); }, 4000);
+  tl
+    .from("nav", {y: -70, opacity: 0, duration: .8})
+    .from(".eyebrow", {x: -20, opacity: 0, duration: .6}, "-=.4")
+    .from("#headline .m>span", {yPercent: 115, rotate: 4, duration: 1.1, stagger: .07}, "-=.4")
+    .from(".lede", {y: 20, opacity: 0, duration: .8}, "-=.7")
+    .from("#drop", {y: 40, opacity: 0, scale: .96, duration: 1}, "-=.8")
+    .from(".stat", {y: 30, opacity: 0, duration: .8, stagger: .06}, "-=.7")
+    .from(".distro, .legend, .boardhead, .board", {y: 24, opacity: 0, duration: .8, stagger: .08}, "-=.6");
+  [[".o1", 9, 160], [".o2", 11, 150], [".o3", 13, 200]].forEach(([s, d, r]) =>
+    G.to(s, {x: `random(-${r},${r})`, y: `random(-${r / 2},${r})`, duration: d, repeat: -1, yoyo: true, ease: "sine.inOut", repeatRefresh: true}));
+  G.to(".drop .ring", {rotate: 360, duration: 40, repeat: -1, ease: "none"});
+  G.to(".plus", {rotate: 90, duration: .6, ease: "back.out(2)", paused: true});
+  document.querySelectorAll(".magnetic").forEach(b => {
+    const xT = G.quickTo(b, "x", {duration: .5, ease: "power3"}), yT = G.quickTo(b, "y", {duration: .5, ease: "power3"});
+    b.addEventListener("mousemove", e => { const r = b.getBoundingClientRect(); xT((e.clientX - r.left - r.width / 2) * .3); yT((e.clientY - r.top - r.height / 2) * .4); });
+    b.addEventListener("mouseleave", () => { xT(0); yT(0); });
+  });
+  const plus = $(".plus");
+  $("#drop").addEventListener("mouseenter", () => G.to(plus, {rotate: 90, scale: 1.08, duration: .5, ease: "back.out(2)"}));
+  $("#drop").addEventListener("mouseleave", () => G.to(plus, {rotate: 0, scale: 1, duration: .5, ease: "power3.out"}));
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(id){
+  if (drawerOpen && SEL !== id && dirty && !confirm("Discard unsaved email edits?")) return;
+  dirty = false; SEL = id;
+  document.querySelectorAll(".row").forEach(r => r.classList.toggle("sel", r.dataset.flipId === id));
+  const wasOpen = drawerOpen;
+  drawerOpen = true; document.body.classList.add("lock");
+  renderDetail(true);
+  $("#drawer").scrollTop = 0;
+  if (wasOpen) return;
+  const d = $("#drawer"), s = $("#scrim");
+  if (G) { G.set(s, {visibility: "visible"}); G.to(s, {opacity: 1, duration: .35}); G.to(d, {xPercent: 0, duration: .75, ease: "expo.out"}); }
+  else { s.style.opacity = 1; s.style.visibility = "visible"; d.style.transform = "none"; }
+}
+function closeDrawer(){
+  if (!drawerOpen) return;
+  if (dirty && !confirm("Discard unsaved email edits?")) return;
+  dirty = false; drawerOpen = false; SEL = null; document.body.classList.remove("lock");
+  document.querySelectorAll(".row.sel").forEach(r => r.classList.remove("sel"));
+  const d = $("#drawer"), s = $("#scrim");
+  if (G) { G.to(d, {xPercent: 105, duration: .5, ease: "expo.in"}); G.to(s, {opacity: 0, duration: .35, delay: .25, onComplete: () => G.set(s, {visibility: "hidden"})}); }
+  else { s.style.opacity = 0; s.style.visibility = "hidden"; d.style.transform = "translateX(105%)"; }
+}
+addEventListener("keydown", e => {
+  if (e.key === "Escape") closeDrawer();
+  if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); $("#q").focus(); }
+});
+
+function ring(r){
+  const C = 2 * Math.PI * 54;
+  return `<div class="ringbox"><svg width="128" height="128" viewBox="0 0 128 128" aria-hidden="true"><circle cx="64" cy="64" r="54" fill="none" stroke="var(--line)" stroke-width="10"/>
+    <circle id="ringArc" cx="64" cy="64" r="54" fill="none" stroke="${bColor(r.band)}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - r.pct / 100)}"/></svg>
+    <div class="c"><div><b id="ringNum">${r.total}</b><small>/ 24 · ${r.pct}%</small></div></div></div>`;
+}
+
+function renderDetail(animate){
+  const c = DATA.find(x => x.id === SEL), d = $("#drawer");
+  detailKey = JSON.stringify(c || null);
+  if (!c) { d.innerHTML = ""; return; }
+  const top = `<div class="dtop"><button class="btn ghost icon" onclick="closeDrawer()" aria-label="Close">✕</button>
+    <a class="file" href="/api/candidates/${c.id}/file" target="_blank" title="Open original resume">↗ ${esc(c.filename)}</a><span class="sp"></span>
+    <select class="sel" id="roleSel" aria-label="Role to assess">${["", "PM", "Sr PM"].map(r => `<option value="${r}" ${(c.role_hint || "") === r ? "selected" : ""}>${r ? "Assess as " + r : "Auto-detect role"}</option>`).join("")}</select>
+    <button class="btn" onclick="rescore('${c.id}')">Rescore</button><button class="btn ghost danger" title="Remove candidate" onclick="del('${c.id}')">Remove</button></div>`;
+  if (c.status !== "done") {
+    d.innerHTML = top + `<div class="dhero"><div><h2>${esc(c.filename)}</h2><div class="meta">${c.status === "error" ? "Scoring failed." : `<span class="pulse"></span>${c.status === "queued" ? "Waiting in queue…" : "Reading the CV and scoring against the rubric…"}`}</div></div></div>
+      ${c.status === "error" ? `<div class="dsec"><div class="note bad">${esc(c.error)}</div><p class="hint">Fix the cause, then press Rescore.</p></div>` : ""}`;
+    return;
+  }
+  const r = c.result, cd = r.candidate, b = r.brief;
+  const notes = (cd.location_gate === "Not open" ? `<div class="note bad">Location gate: the CV suggests they're not open to working in-office in Mumbai.</div>`
+      : cd.location_gate === "Unclear" ? `<div class="note warn">Location unclear (${esc(cd.location || "not stated")}). Confirm Mumbai or relocation before the interview.</div>` : "")
+    + (r.band === "BORDERLINE" ? `<div class="note warn">Borderline: the rubric says interview only if the shortlist is thin. Choose Invite or Decline below.</div>` : "");
+  const params = r.params.map(p => `<div class="pcard">
+      <div class="ptop"><span class="pk">${p.key.toUpperCase()}</span><span class="pl">${esc(p.label)}</span><span class="pw">×${p.weight} · ${p.weighted}/${3 * p.weight}</span><span class="meter">${[1, 2, 3].map(i => `<i class="${p.score >= i ? "on" : ""}"></i>`).join("")}</span></div>
+      ${p.evidence ? `<blockquote>${esc(p.evidence)}</blockquote><span class="vf ${p.verified ? "ok" : "no"}">${p.verified ? "✓ found in CV" : "⚠ not found word for word. Check the CV."}</span>` : `<div class="none">No evidence in the CV, so this scores 0</div>`}
+      <div class="rs">${esc(p.reasoning)}</div></div>`).join("");
+  const qs = (b.probe_questions || []).map((q, i) => `<div class="qc"><span class="qn">${i + 1}</span><div><div class="qt">${esc(q.question)}</div><div class="qm"><b>Targets</b> ${esc(q.targets)} · <b>Listen for</b> ${esc(q.listen_for)}</div></div></div>`).join("");
+  d.innerHTML = top + `
+    <div class="dhero">${ring(r)}<div class="dh-text">
+      <span class="band ${bk(r.band)}">${bLabel(r.band)}</span>
+      <h2>${esc(cd.name)}</h2>
+      <div class="meta">${esc(cd.current_title)}<br>${esc(cd.location || "Location not stated")} · ${cd.pm_years} yrs PM · ${cd.total_years_experience} yrs total<br>${esc(cd.email || "No email on CV")}</div></div></div>
+    <div class="dsec">${notes}<div class="assess">Assessed as <b>${esc(cd.role_assessed)}</b>: ${esc(cd.role_reason)}</div></div>
+    <div class="dsec"><h4>Why ranked here</h4><p class="why">${esc(r.why_ranked)}</p></div>
+    <div class="dsec"><h4>Score breakdown</h4>${params}</div>
+    <div class="dsec"><h4>Interview brief</h4>
+      <p class="summary">${esc(b.summary)}</p>
+      <div class="two"><div class="box"><b>Strengths</b><ul>${b.strengths.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>
+      <div class="box"><b>Concerns</b><ul>${b.concerns.map(s => `<li>${esc(s)}</li>`).join("") || "<li>None noted</li>"}</ul></div></div>
+      ${qs}
+      <div style="margin-top:14px"><button class="btn" onclick="copyBrief()">Copy brief</button></div></div>
+    <div class="dsec" id="mailSec"></div>`;
+  renderMail(c);
+  if (G && animate) {
+    const arc = $("#ringArc"), C = 2 * Math.PI * 54, o = {n: 0}, num = $("#ringNum");
+    G.fromTo(arc, {attr: {"stroke-dashoffset": C}}, {attr: {"stroke-dashoffset": C * (1 - r.pct / 100)}, duration: 1.4, ease: "power3.out", delay: .3});
+    num.textContent = 0;
+    G.to(o, {n: r.total, duration: 1.4, ease: "power3.out", delay: .3, onUpdate: () => num.textContent = Math.round(o.n)});
+    G.from(".dh-text > *", {y: 20, opacity: 0, duration: .6, stagger: .06, ease: "power3.out", delay: .2});
+    G.from("#drawer .dsec", {y: 30, opacity: 0, duration: .7, stagger: .07, ease: "power3.out", delay: .3});
+    G.from("#drawer .meter i.on", {scaleX: 0, duration: .35, stagger: .03, ease: "power2.out", delay: .7});
+  }
+}
+
+function renderMail(c){
+  const sec = $("#mailSec"), kind = c.decision === "decline" ? "decline" : "invite";
+  const d = (c.drafts || {})[kind] || {subject: "", body: ""};
+  const to = c.email_override ?? c.result.candidate.email ?? "";
+  const sent = c.sent.map(s => s.test
+    ? `<div class="note warn">Test: ${s.kind === "invite" ? "invitation" : "decline"} meant for ${esc(s.to)} was sent to you (${esc(s.delivered_to)}) · ${new Date(s.at).toLocaleString()}</div>`
+    : `<div class="note ok">✓ ${s.kind === "invite" ? "Invitation" : "Decline"} sent to ${esc(s.to)} · ${new Date(s.at).toLocaleString()}</div>`).join("");
+  const segHTML = `<div class="seg" id="decSeg" style="margin-bottom:16px"></div>`;
+  if (c.decision === "hold") {
+    sec.innerHTML = `<h4>Decision &amp; email</h4>${sent}${segHTML}<p class="hint">On hold, so no email is drafted. Choose Invite or Decline to see the draft.</p>`;
+  } else {
+    const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
+    sec.innerHTML = `<h4>Decision &amp; email</h4>${sent}${segHTML}
+      <div class="f"><label for="mTo">To</label><input id="mTo" value="${esc(to)}" oninput="dirty=true"></div>
+      <div class="f"><label for="mSub">Subject</label><input id="mSub" value="${esc(d.subject)}" oninput="dirty=true"></div>
+      <div class="f"><label for="mBody">Message</label><textarea id="mBody" oninput="dirty=true">${esc(d.body)}</textarea></div>
+      <div class="sendrow">
+        <button class="btn go" id="sendBtn" ${CFG.smtp_ready ? "" : "disabled"} onclick="sendMail('${c.id}','${kind}')">${sendLabel(kind)}</button>
+        <button class="btn" onclick="saveDraft('${c.id}','${kind}')">Save draft</button>
+        <a class="btn ghost" href="${mailto}">Open in mail app</a>
+        ${!CFG.smtp_ready ? `<span class="hint">Sending is off. Add a RESEND_API_KEY to .env and restart the server.</span>` : CFG.test_to ? `<span class="hint">Test mode: emails go to ${esc(CFG.test_to)}, not to the candidate.</span>` : ""}
+      </div>`;
+  }
+  seg("#decSeg", [["invite","Invite to interview"],["hold","Hold"],["decline","Decline"]], () => c.decision, v => setDecision(c.id, v));
+}
+
+const sendLabel = kind => CFG.test_to ? `Send test ${kind === "invite" ? "invitation" : "decline"} to me →` : `Send ${kind === "invite" ? "invitation" : "decline"} →`;
+async function setDecision(id, k){
+  const c = DATA.find(x => x.id === id);
+  if (dirty && $("#mSub")) await saveDraft(id, c.decision, true);
+  const u = await api("PUT", `/api/candidates/${id}`, {decision: k});
+  Object.assign(c, u); dirty = false; detailKey = JSON.stringify(c);
+  setTimeout(() => {
+    renderMail(c); renderList(false);
+    if (G) G.from("#mailSec .f, #mailSec .sendrow, #mailSec .hint", {y: 14, opacity: 0, duration: .45, stagger: .05, ease: "power3.out"});
+  }, 280);
+}
+async function saveDraft(id, kind, quiet){
+  const drafts = {}; drafts[kind] = {subject: $("#mSub").value, body: $("#mBody").value};
+  const u = await api("PUT", `/api/candidates/${id}`, {drafts, email_override: $("#mTo").value});
+  const c = DATA.find(x => x.id === id); Object.assign(c, u); dirty = false; detailKey = JSON.stringify(c);
+  if (!quiet) toast("Draft saved");
+}
+let armT = null;
+async function sendMail(id, kind){
+  const btn = $("#sendBtn"), c = DATA.find(x => x.id === id), label = sendLabel(kind);
+  if (!btn.dataset.armed) {
+    btn.dataset.armed = "1"; btn.classList.add("armed"); btn.textContent = CFG.test_to ? `Click again to send test to ${CFG.test_to}` : `Click again to send to ${$("#mTo").value}`;
+    if (G) G.fromTo(btn, {scale: .92}, {scale: 1, duration: .6, ease: "elastic.out(1,.45)"});
+    armT = setTimeout(() => { btn.dataset.armed = ""; btn.classList.remove("armed"); btn.textContent = label; }, 4000);
+    return;
+  }
+  clearTimeout(armT);
+  const body = {kind, to: $("#mTo").value, subject: $("#mSub").value, body: $("#mBody").value};
+  if (!CFG.test_to && c.sent.some(s => !s.test)) { if (!confirm("An email was already sent to this candidate. Send another one?")) { btn.dataset.armed = ""; btn.classList.remove("armed"); btn.textContent = label; return; } body.force = true; }
+  btn.disabled = true; btn.classList.remove("armed"); btn.textContent = "Sending…";
+  try {
+    const u = await api("POST", `/api/candidates/${id}/send`, body);
+    burst(btn);
+    Object.assign(c, u); dirty = false; detailKey = JSON.stringify(c);
+    toast(CFG.test_to ? "Test email sent to you" : kind === "invite" ? "Invitation sent" : "Decline sent");
+    renderMail(c); render();
+    if (G) G.from("#mailSec .note:last-of-type", {scale: .92, opacity: 0, duration: .6, ease: "back.out(2)"});
+  } catch (e) { toast("Not sent: " + e.message); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Retry send →"; }
+}
+function burst(el){
+  if (!G) return;
+  const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const cols = ["#0ae448", "#9d95ff", "#fec5fb", "#ff8709", "#00bae2", "#fffce1"];
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement("span"); s.className = "spark"; s.style.background = cols[i % cols.length];
+    s.style.left = cx + "px"; s.style.top = cy + "px"; document.body.appendChild(s);
+    const a = Math.random() * Math.PI * 2, dist = 70 + Math.random() * 160;
+    G.to(s, {x: Math.cos(a) * dist, y: Math.sin(a) * dist - 50, rotate: Math.random() * 540, opacity: 0, scale: .4 + Math.random(),
+      duration: .9 + Math.random() * .6, ease: "power3.out", onComplete: () => s.remove()});
+  }
+}
+async function rescore(id){
+  const role = $("#roleSel").value;
+  try {
+    const u = await api("POST", `/api/candidates/${id}/rescore`, {role});
+    Object.assign(DATA.find(x => x.id === id), u); doneSeen.delete(id); dirty = false; toast("Rescoring…"); load();
+  } catch (e) { toast(e.message); }
+}
+async function del(id){
+  if (!confirm("Remove this candidate and their uploaded file?")) return;
+  await api("DELETE", `/api/candidates/${id}`);
+  dirty = false; closeDrawer(); DATA = DATA.filter(x => x.id !== id); render();
+}
+function copyBrief(){
+  const c = DATA.find(x => x.id === SEL), r = c.result, b = r.brief, cd = r.candidate;
+  const t = [`${cd.name} – ${cd.role_assessed} – ${r.total}/24 (${r.band})`, "", r.why_ranked, "", b.summary, "",
+    "Scores:", ...r.params.map(p => `  ${p.key.toUpperCase()} ${p.label}: ${p.score}/3 – "${p.evidence}"`), "",
+    "Strengths:", ...b.strengths.map(s => "  - " + s), "", "Concerns:", ...b.concerns.map(s => "  - " + s), "",
+    "Probe questions:", ...b.probe_questions.map((q, i) => `  ${i + 1}. ${q.question}\n     Targets ${q.targets}. Listen for: ${q.listen_for}`)].join("\n");
+  navigator.clipboard.writeText(t).then(() => toast("Brief copied"), () => toast("Couldn't copy"));
+}
+
+/* ---------- upload ---------- */
+const picker = $("#picker"), drop = $("#drop");
+picker.onchange = () => { upload([...picker.files]); picker.value = ""; };
+drop.addEventListener("mousemove", e => { const r = drop.getBoundingClientRect(); drop.style.setProperty("--mx", (e.clientX - r.left) + "px"); drop.style.setProperty("--my", (e.clientY - r.top) + "px"); });
+let dragDepth = 0;
+addEventListener("dragenter", e => { e.preventDefault(); if (dragDepth++ === 0) { drop.classList.add("over"); if (G) G.to(drop, {scale: 1.02, duration: .3}); } });
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; drop.classList.remove("over"); if (G) G.to(drop, {scale: 1, duration: .3}); } });
+addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; drop.classList.remove("over"); if (G) G.to(drop, {scale: 1, duration: .5, ease: "back.out(2)"}); upload([...e.dataTransfer.files]); });
+const b64 = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(f); });
+async function upload(files){
+  files = files.filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
+  if (!files.length) return toast("Only PDF, DOCX or TXT files");
+  const prog = $("#prog"), bar = prog.querySelector("b"), msg = $("#upmsg");
+  prog.style.opacity = 1; bar.style.width = "0";
+  let ok = 0, dup = 0, finished = 0, next = 0; const bad = [];
+  // 3 at a time: when hosted, each upload waits while its resume is scored
+  const worker = async () => {
+    while (next < files.length) {
+      const f = files[next++];
+      msg.textContent = `Uploading & scoring ${Math.min(next, files.length)} / ${files.length} · ${f.name}`;
+      try { const j = await api("POST", "/api/upload", {name: f.name, data: await b64(f)}); j.duplicate ? dup++ : ok++; }
+      catch (e) { bad.push(`${f.name}: ${e.message}`); }
+      finished++;
+      const pct = (100 * finished / files.length) + "%";
+      if (G) G.to(bar, {width: pct, duration: .3}); else bar.style.width = pct;
+      if (finished % 3 === 0) load();
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  msg.textContent = `Added ${ok}` + (dup ? ` · ${dup} already uploaded` : "") + (bad.length ? ` · ${bad.length} failed` : "");
+  setTimeout(() => { if (G) G.to(prog, {opacity: 0, duration: .5}); else prog.style.opacity = 0; }, 1500);
+  if (bad.length) alert(bad.join("\n"));
+  load();
+}
+$("#q").addEventListener("input", () => renderList(true));
+
+renderStatic();
+load();
+</script>
+</body>
+</html>
