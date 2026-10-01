@@ -154,9 +154,9 @@ How to score an applicant:
 Also write, for the hiring manager Arjun:
 - why_ranked: two lines on why this applicant lands where they do.
 - brief: an interview brief. Strengths and concerns must be grounded in the CV. probe_questions: 2 questions tied to the weakest-scoring parameters (as the rubric asks), then up to 2 more worth asking; each says which parameter it targets and what a strong answer would contain.
-- invite_email: a warm, short interview invitation from the sender to the applicant. Mention one specific thing from their CV that stood out. Include the scheduling instruction you are given. Plain text, no markdown.
-- decline_email: a respectful, kind decline. Thank them, do not quote scores or the rubric, do not give false hope, wish them well. Plain text, no markdown. Under 120 words.
-Write emails ready to send: no placeholders in square brackets except where information is truly unknown."""
+- invite_email: a warm, short interview invitation from the sender to the applicant. Mention one specific thing from their CV that stood out. Include the scheduling instruction you are given.
+- decline_email: a respectful, kind decline. Thank them, do not quote scores or the rubric, do not give false hope, wish them well. Under 120 words.
+For both emails, "paragraphs" holds only the body: 2 or 3 short paragraphs of 1-3 sentences each. Do NOT include a greeting ("Hi ...") or a sign-off ("Best regards", the sender's name); the system adds those. Plain text, no markdown, no placeholders in square brackets except where information is truly unknown."""
     return SYSTEM_PROMPT
 
 
@@ -174,8 +174,36 @@ def _param_schema(desc):
 
 
 def _email_schema():
-    return {"type": "object", "properties": {"subject": {"type": "string"}, "body": {"type": "string"}},
-            "required": ["subject", "body"]}
+    return {"type": "object", "properties": {
+        "subject": {"type": "string"},
+        "paragraphs": {"type": "array", "items": {"type": "string"},
+                       "description": "2-3 short body paragraphs; no greeting, no sign-off"}},
+        "required": ["subject", "paragraphs"]}
+
+
+def compose_email(first_name, paragraphs):
+    """Lay an email out the same way every time: greeting, paragraphs separated by blank lines, sign-off."""
+    paras = [" ".join(p.split()) for p in paragraphs if p and p.strip()]
+    return (f"Hi {first_name},\n\n" + "\n\n".join(paras) +
+            f"\n\nBest regards,\n{env('SENDER_NAME', 'Arjun')}\n{env('COMPANY_NAME', 'Kargo')}")
+
+
+SIGNOFF_RE = re.compile(r"\s*\b((?:Best|Warm|Kind|Warmest)\s+regards|Best wishes|Many thanks|Sincerely|Regards|Thanks|Best)\s*,\s*[^.!?]{0,60}$")
+
+
+def tidy_email(body, first_name):
+    """Re-lay out an email that arrived as one run-on block (older drafts): keeps the wording, fixes the format."""
+    text = " ".join((body or "").split())
+    m = re.match(r"^(?:Hi|Hello|Dear)\s+[^,]{1,40},\s*", text)
+    if m:
+        text = text[m.end():]
+    s = SIGNOFF_RE.search(text)
+    if s:
+        text = text[:s.start()]
+    sentences = [x for x in re.split(r"(?<=[.!?])\s+(?=[A-Z\"'(])", text.strip()) if x]
+    # 1 opening sentence, then pairs of sentences, so a typical email gets 2-4 short paragraphs
+    paras = sentences[:1] + [" ".join(sentences[i:i + 2]) for i in range(1, len(sentences), 2)]
+    return compose_email(first_name, paras)
 
 
 SCHEMA = {
@@ -362,6 +390,13 @@ def unescape(v):
     return v
 
 
+def _built_email(e, name):
+    first = (name or "there").split()[0]
+    if e.get("paragraphs"):
+        return {"subject": e["subject"], "body": compose_email(first, e["paragraphs"])}
+    return {"subject": e["subject"], "body": tidy_email(e.get("body", ""), first)}  # model ignored the schema
+
+
 def score_cv(cv_text, role_hint=None):
     """Call the model, then compute totals/band in code and verify every evidence quote."""
     out = unescape(call_llm(cv_text, role_hint))
@@ -383,7 +418,7 @@ def score_cv(cv_text, role_hint=None):
         "band": band_for(total),
         "why_ranked": out["why_ranked"],
         "brief": out["brief"],
-        "emails": {"invite": out["invite_email"], "decline": out["decline_email"]},
+        "emails": {k: _built_email(out[f"{k}_email"], out["candidate"].get("name")) for k in ("invite", "decline")},
         "unverified": sum(1 for r in rows if r["score"] > 0 and r["verified"] is False),
     }
 
@@ -643,12 +678,13 @@ def hold_draft(res):
     cand = res["candidate"]
     first = (cand.get("name") or "there").split()[0]
     role = "Senior Product Manager" if cand.get("role_assessed") == "Sr PM" else "Product Manager"
-    company, sender = env("COMPANY_NAME", "Kargo"), env("SENDER_NAME", "Arjun")
+    company = env("COMPANY_NAME", "Kargo")
     return {"subject": f"Your application for {role} at {company}",
-            "body": f"Hi {first},\n\nThank you for applying for the {role} role at {company}. "
-                    f"Your application is still under review: we're meeting other candidates over the next couple of weeks "
-                    f"and will get back to you with a decision as soon as we can.\n\n"
-                    f"Thank you for your patience.\n\nBest,\n{sender}\n{company}"}
+            "body": compose_email(first, [
+                f"Thank you for applying for the {role} role at {company}.",
+                "Your application is still under review. We're meeting other candidates over the next couple of weeks "
+                "and will get back to you with a decision as soon as we can.",
+                "Thank you for your patience."])}
 
 
 EMAIL_RE = re.compile(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+")
