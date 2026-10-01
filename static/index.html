@@ -113,6 +113,21 @@ h1 .m>span{display:inline-block}
 .distro span{height:100%;width:0}
 .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:34px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:0}
+.results{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:20px 22px;margin:0 0 22px}
+.results .rh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.results h3{font:800 22px var(--display);letter-spacing:-.02em;margin:0}
+.results .sub{color:var(--muted);font-size:13px;margin:0 0 6px}
+.rr{display:grid;grid-template-columns:minmax(0,1.4fr) auto minmax(0,1.3fr) auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.rr .nm{font-weight:650}
+.rr .tt,.rr .why{font-size:12.5px;color:var(--muted)}
+.rr .why{grid-column:1/-1;margin-top:-6px;font-size:13.5px;color:var(--ink)}
+.rr .sc{font:700 20px var(--mono);white-space:nowrap}
+.rr .sc small{font-size:12px;color:var(--faint)}
+.mail-st{font-size:13.5px}
+.mail-st.ok{color:var(--short);font-weight:600}
+.mail-st.warn{color:var(--border)}
+.mail-st.bad{color:var(--no)}
+@media (max-width:760px){.rr{grid-template-columns:1fr auto}.rr .mail-st{grid-column:1/-1}}
 .setup{border:1px solid color-mix(in srgb,var(--no) 45%,transparent);background:var(--no-bg);border-radius:18px;padding:14px 18px;margin-bottom:18px;font-size:14px}
 .setup code{font:500 13px var(--mono);background:var(--surface2);padding:2px 6px;border-radius:6px}
 
@@ -302,6 +317,7 @@ blockquote{margin:0;padding:10px 14px;border-left:2px solid var(--green);font-si
     </div>
   </section>
 
+  <section class="results" id="results" hidden aria-live="polite"></section>
   <div id="setup"></div>
   <div class="stats" id="stats"></div>
   <div class="distro" id="distro"><span id="dS" style="background:var(--short)"></span><span id="dB" style="background:var(--border)"></span><span id="dN" style="background:var(--no)"></span></div>
@@ -440,6 +456,7 @@ function render(){
     if (G) G.to("#" + id, {width: pct, duration: 1.2, ease: "power3.inOut", delay: firstLoad ? .9 : 0}); else $("#" + id).style.width = pct;
   }
   renderList(!firstLoad);
+  if (RESULTS) renderResults();
   if (drawerOpen && !dirty && JSON.stringify(DATA.find(x => x.id === SEL) || null) !== detailKey) renderDetail(false);
 }
 
@@ -465,9 +482,9 @@ function rowHTML(c, i){
       <span class="st">${err ? "" : `<span class="pulse"></span>${c.status === "queued" ? "Queued" : "Scoring"}`}</span><span></span><span></span></div>`;
   }
   const r = c.result, cd = r.candidate, k = bk(r.band);
-  const real = c.sent.filter(s => !s.test), em = real.length ? `<span class="st sent">✓ ${real.at(-1).kind === "invite" ? "Invited" : "Declined"}</span>`
-    : c.sent.length ? `<span class="st">✓ Test ${c.sent.at(-1).kind} sent</span>`
-    : `<span class="st">${c.decision === "invite" ? "Invite ready" : c.decision === "decline" ? "Decline ready" : "On hold"}</span>`;
+  const real = c.sent.filter(s => !s.test), em = real.length ? `<span class="st sent">✓ ${KIND[real.at(-1).kind].done}</span>`
+    : c.sent.length ? `<span class="st">✓ Test ${KIND[c.sent.at(-1).kind].noun} sent</span>`
+    : `<span class="st">${KIND[c.decision || "hold"].ready}</span>`;
   return `<div class="row ${i < 3 ? "top" : ""} ${SEL === c.id ? "sel" : ""}" data-flip-id="${c.id}" onclick="openDrawer('${c.id}')">
     <span class="rank">${String(i + 1).padStart(2, "0")}</span>
     <div class="who"><span class="av ${k}">${esc(initials(cd.name))}</span><div><div class="nm">${esc(cd.name)}${r.unverified ? `<span class="warn" title="Some evidence quotes weren't found word for word in the CV">⚠</span>` : ""}</div><div class="tt">${esc(cd.current_title)}</div></div></div>
@@ -644,16 +661,15 @@ function renderDetail(animate){
 }
 
 function renderMail(c){
-  const sec = $("#mailSec"), kind = c.decision === "decline" ? "decline" : "invite";
+  const sec = $("#mailSec"), kind = c.decision || "hold";
   const d = (c.drafts || {})[kind] || {subject: "", body: ""};
   const to = c.email_override ?? c.result.candidate.email ?? "";
   const sent = c.sent.map(s => s.test
-    ? `<div class="note warn">Test: ${s.kind === "invite" ? "invitation" : "decline"} meant for ${esc(s.to)} was sent to you (${esc(s.delivered_to)}) · ${new Date(s.at).toLocaleString()}</div>`
-    : `<div class="note ok">✓ ${s.kind === "invite" ? "Invitation" : "Decline"} sent to ${esc(s.to)} · ${new Date(s.at).toLocaleString()}</div>`).join("");
+    ? `<div class="note warn">Test: ${KIND[s.kind].noun} meant for ${esc(s.to)} was sent to you (${esc(s.delivered_to)}) · ${new Date(s.at).toLocaleString()}</div>`
+    : `<div class="note ok">✓ ${KIND[s.kind].Noun} sent to ${esc(s.to)} · ${new Date(s.at).toLocaleString()}</div>`).join("")
+    + (c.auto_email_error ? `<div class="note bad">Automatic email didn't send: ${esc(c.auto_email_error)}</div>` : "");
   const segHTML = `<div class="seg" id="decSeg" style="margin-bottom:16px"></div>`;
-  if (c.decision === "hold") {
-    sec.innerHTML = `<h4>Decision &amp; email</h4>${sent}${segHTML}<p class="hint">On hold, so no email is drafted. Choose Invite or Decline to see the draft.</p>`;
-  } else {
+  {
     const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
     sec.innerHTML = `<h4>Decision &amp; email</h4>${sent}${segHTML}
       <div class="f"><label for="mTo">To</label><input id="mTo" value="${esc(to)}" oninput="dirty=true"></div>
@@ -666,10 +682,15 @@ function renderMail(c){
         ${!CFG.smtp_ready ? `<span class="hint">Sending is off. Add a RESEND_API_KEY to .env and restart the server.</span>` : CFG.test_to ? `<span class="hint">Test mode: emails go to ${esc(CFG.test_to)}, not to the candidate.</span>` : ""}
       </div>`;
   }
-  seg("#decSeg", [["invite","Invite to interview"],["hold","Hold"],["decline","Decline"]], () => c.decision, v => setDecision(c.id, v));
+  seg("#decSeg", [["invite","Invite to interview"],["hold","On hold"],["decline","Reject"]], () => c.decision, v => setDecision(c.id, v));
 }
 
-const sendLabel = kind => CFG.test_to ? `Send test ${kind === "invite" ? "invitation" : "decline"} to me →` : `Send ${kind === "invite" ? "invitation" : "decline"} →`;
+const KIND = {
+  invite:  {noun: "invitation",     Noun: "Invitation",     done: "Invited",          ready: "Invite ready"},
+  decline: {noun: "rejection",      Noun: "Rejection",      done: "Rejected",         ready: "Rejection ready"},
+  hold:    {noun: "on-hold email",  Noun: "On-hold email",  done: "On hold · emailed", ready: "On-hold email ready"},
+};
+const sendLabel = kind => CFG.test_to ? `Send test ${KIND[kind].noun} to me →` : `Send ${KIND[kind].noun} →`;
 async function setDecision(id, k){
   const c = DATA.find(x => x.id === id);
   if (dirty && $("#mSub")) await saveDraft(id, c.decision, true);
@@ -703,7 +724,7 @@ async function sendMail(id, kind){
     const u = await api("POST", `/api/candidates/${id}/send`, body);
     burst(btn);
     Object.assign(c, u); dirty = false; detailKey = JSON.stringify(c);
-    toast(CFG.test_to ? "Test email sent to you" : kind === "invite" ? "Invitation sent" : "Decline sent");
+    toast(CFG.test_to ? "Test email sent to you" : `${KIND[kind].Noun} sent`);
     renderMail(c); render();
     if (G) G.from("#mailSec .note:last-of-type", {scale: .92, opacity: 0, duration: .6, ease: "back.out(2)"});
   } catch (e) { toast("Not sent: " + e.message); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Retry send →"; }
@@ -756,7 +777,9 @@ async function upload(files){
   if (!files.length) return toast("Only PDF, DOCX or TXT files");
   const prog = $("#prog"), bar = prog.querySelector("b"), msg = $("#upmsg");
   prog.style.opacity = 1; bar.style.width = "0";
-  let ok = 0, dup = 0, finished = 0, next = 0; const bad = [], ids = [];
+  let ok = 0, dup = 0, finished = 0, next = 0; const bad = [];
+  RESULTS = {items: [], total: files.length};
+  renderResults();
   msg.className = "upmsg";
   // 3 at a time: when hosted, each upload waits while its resume is scored
   const worker = async () => {
@@ -765,33 +788,59 @@ async function upload(files){
       msg.innerHTML = `<span class="pulse"></span>Reading & scoring ${files.length > 1 ? `${Math.min(next, files.length)} of ${files.length}` : `“${esc(f.name)}”`}… about 20 seconds each`;
       try {
         const j = await api("POST", "/api/upload", {name: f.name, data: await b64(f)});
-        j.duplicate ? dup++ : ok++; ids.push({id: j.id, dup: j.duplicate});
-      } catch (e) { bad.push(`${f.name}: ${e.message}`); }
+        j.duplicate ? dup++ : ok++; RESULTS.items.push({id: j.id, dup: j.duplicate, file: f.name, sentBefore: j.sent_before || 0});
+      } catch (e) { bad.push(`${f.name}: ${e.message}`); RESULTS.items.push({file: f.name, error: e.message}); }
       finished++;
       const pct = (100 * finished / files.length) + "%";
       if (G) G.to(bar, {width: pct, duration: .3}); else bar.style.width = pct;
-      if (finished % 3 === 0) load();
+      await load();
     }
   };
   await Promise.all([worker(), worker(), worker()]);
-  await load();
+  // Wait until every upload is scored and its email has been attempted (locally scoring runs in the background).
+  const pending = () => RESULTS.items.some(x => { const c = x.id && DATA.find(d => d.id === x.id); return c && (c.status === "queued" || c.status === "scoring" || (c.auto_send && c.status === "done")); });
+  for (let i = 0; i < 150 && pending(); i++) { msg.innerHTML = `<span class="pulse"></span>Finishing scoring and emails…`; await new Promise(r => setTimeout(r, 2000)); await load(); }
   setTimeout(() => { if (G) G.to(prog, {opacity: 0, duration: .5}); else prog.style.opacity = 0; }, 1500);
-  if (bad.length) alert("Couldn't upload:\n" + bad.join("\n"));
-  // Show the result straight away: one file opens its card; several get a summary.
-  const describe = x => {
+  msg.innerHTML = `✓ Done: ${ok} new` + (dup ? ` · ${dup} already uploaded` : "") + (bad.length ? ` · ${bad.length} failed` : "") + ". See the summary below.";
+  msg.className = "upmsg done";
+  renderResults();
+  $("#results").scrollIntoView({behavior: RM ? "auto" : "smooth", block: "nearest"});
+}
+
+/* ---------- upload results summary ---------- */
+let RESULTS = null;
+function mailStatus(x, c){
+  if (c.status === "queued" || c.status === "scoring") return `<span class="mail-st"><span class="pulse"></span>Scoring…</span>`;
+  if (c.status === "error") return `<span class="mail-st bad">Couldn't score. Open it and press Rescore.</span>`;
+  if (c.auto_send) return `<span class="mail-st"><span class="pulse"></span>Sending email…</span>`;
+  const last = c.sent.at(-1);
+  if (last && c.sent.length > (x.sentBefore || 0)) return `<span class="mail-st ok">✉ ${KIND[last.kind].Noun} sent${last.test ? " · test, to your inbox" : ` to ${esc(last.to)}`}</span>`;
+  if (last) return `<span class="mail-st">Already emailed earlier (${KIND[last.kind].noun}). Not sent again.</span>`;
+  if (c.auto_email_error) return `<span class="mail-st bad">Email not sent: ${esc(c.auto_email_error)}</span>`;
+  return `<span class="mail-st warn">No email sent. Open the card to send one.</span>`;
+}
+function renderResults(){
+  const el = $("#results");
+  if (!RESULTS) { el.hidden = true; return; }
+  el.hidden = false;
+  const rows = RESULTS.items.map(x => {
+    if (x.error) return `<div class="rr"><div><div class="nm">${esc(x.file)}</div><div class="tt">Upload failed</div></div><span></span><span class="mail-st bad">${esc(x.error)}</span><span></span></div>`;
     const c = DATA.find(d => d.id === x.id);
     if (!c) return "";
-    if (c.status !== "done") return c.status === "error" ? `Couldn't score “${esc(c.filename)}”. Open it and press Rescore.` : `Scoring “${esc(c.filename)}”… its card updates when done.`;
-    const r = c.result;
-    return `${x.dup ? "Already uploaded earlier" : "✓ Scored"}: <b>${esc(r.candidate.name)}</b> · ${r.total}/24 · ${bLabel(r.band)}`;
-  };
-  if (ids.length === 1) {
-    msg.innerHTML = describe(ids[0]);
-    openDrawer(ids[0].id);
-  } else if (ids.length) {
-    msg.innerHTML = `✓ ${ok} new scored` + (dup ? ` · ${dup} already uploaded` : "") + (bad.length ? ` · ${bad.length} failed` : "") + " · click any name below to see the result";
-  }
-  msg.className = "upmsg done";
+    const r = c.result, k = r ? bk(r.band) : "";
+    return `<div class="rr">
+      <div><div class="nm">${esc(r ? r.candidate.name : c.filename)}${x.dup ? ` <span class="tag" style="margin-left:6px">already uploaded</span>` : ""}</div>
+        <div class="tt">${r ? `${esc(r.candidate.role_assessed)} · ${esc(r.candidate.current_title)}` : esc(c.filename)}</div></div>
+      ${r ? `<div style="display:flex;gap:10px;align-items:center"><span class="sc">${r.total}<small>/24</small></span><span class="band ${k}">${bLabel(r.band)}</span></div>` : "<span></span>"}
+      ${mailStatus(x, c)}
+      <button class="btn" onclick="openDrawer('${c.id}')">View</button>
+      ${r ? `<div class="why">${esc(r.why_ranked)}</div>` : ""}
+    </div>`;
+  }).join("");
+  const waiting = RESULTS.total - RESULTS.items.length;
+  el.innerHTML = `<div class="rh"><h3>Upload results</h3><span class="sp"></span><button class="btn ghost icon" onclick="RESULTS=null;renderResults()" aria-label="Close summary">✕</button></div>
+    <p class="sub">Shortlist → invitation · Borderline → on-hold email · Not moving forward → rejection${CFG && CFG.test_to ? ". Test mode: emails go to your inbox." : ""}</p>
+    ${rows}${waiting > 0 ? `<div class="rr"><span class="mail-st"><span class="pulse"></span>${waiting} more being uploaded and scored…</span></div>` : ""}`;
 }
 $("#q").addEventListener("input", () => renderList(true));
 

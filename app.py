@@ -188,11 +188,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": f"File over {MAX_UPLOAD // (1024 * 1024)} MB"})
             if Path(body.get("name", "")).suffix.lower() not in (".pdf", ".docx", ".txt"):
                 return self._send(400, {"error": "Only PDF, DOCX or TXT resumes"})
+            prior = S.store.get(S.store.by_hash(hashlib.sha256(blob).hexdigest()) or "")
+            sent_before = len(prior["sent"]) if prior else 0
             try:
                 cid, dup = S.ingest(body["name"], blob)
             except Exception as e:
                 return self._send(503, {"error": f"Could not save this resume: {str(e)[:200]}. Try again in a minute."})
-            return self._send(200, {"id": cid, "duplicate": dup})
+            return self._send(200, {"id": cid, "duplicate": dup, "sent_before": sent_before})
 
         cid, action = self._route()
         c = S.store.get(cid) if cid else None
@@ -202,25 +204,16 @@ class Handler(BaseHTTPRequestHandler):
             role = body.get("role") if body.get("role") in ("PM", "Sr PM") else None
             return self._send(200, S.rescore(cid, role))
         if action == "send":
-            kind = body.get("kind")
-            to, subject, text = (body.get("to") or "").strip(), body.get("subject", ""), body.get("body", "")
-            if kind not in ("invite", "decline"):
-                return self._send(400, {"error": "kind must be invite or decline"})
-            if not re.fullmatch(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+", to):
-                return self._send(400, {"error": "Enter a valid recipient email"})
-            test = bool(S.test_recipient())
-            if not test and any(s["kind"] in ("invite", "decline") and not s.get("test") for s in c["sent"]) and not body.get("force"):
-                return self._send(409, {"error": "An email was already sent to this candidate"})
             try:
-                # same key for a repeated click on the same email; a deliberate re-send gets a new one
-                msg_id = S.send_email(to, subject, text, idempotency_key=f"{cid}-{kind}-{len(c['sent'])}{'-test' if test else ''}")
+                return self._send(200, S.email_candidate(cid, body.get("kind"), to=body.get("to") or "",
+                                                         subject=body.get("subject", ""), body=body.get("body", ""),
+                                                         force=bool(body.get("force"))))
+            except ValueError as e:
+                return self._send(400, {"error": str(e)})
+            except PermissionError as e:
+                return self._send(409, {"error": str(e)})
             except Exception as e:
                 return self._send(502, {"error": str(e)[:300]})
-            drafts = c["drafts"] or {}
-            drafts[kind] = {"subject": subject, "body": text}
-            sent = c["sent"] + [{"kind": kind, "to": to, "at": S.now(), "via": S.email_provider(), "id": msg_id,
-                                   **({"test": True, "delivered_to": S.test_recipient()} if test else {})}]
-            return self._send(200, S.store.update(cid, sent=sent, drafts=drafts, decision=kind))
         self._send(404, {"error": "not found"})
 
     def do_PUT(self):

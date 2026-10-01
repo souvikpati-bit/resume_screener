@@ -328,9 +328,20 @@ def _gemini(prompt):
         "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json",
                              "responseSchema": _for_gemini(SCHEMA)},
     }
-    r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                      json=body, headers={"x-goog-api-key": key}, timeout=180)
-    data = r.json()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    for attempt in range(3):  # dropped connections, rate limits and 5xx are usually gone a few seconds later
+        try:
+            r = requests.post(url, json=body, headers={"x-goog-api-key": key}, timeout=180)
+            if r.status_code not in (429, 500, 502, 503, 504) or attempt == 2:
+                break
+        except requests.RequestException as e:
+            if attempt == 2:
+                raise LLMError(f"Could not reach Gemini: {e}")
+        time.sleep(3 * (attempt + 1))
+    try:
+        data = r.json()
+    except ValueError:
+        raise LLMError(f"Gemini error {r.status_code}")
     if r.status_code != 200:
         raise LLMError(f"Gemini error {r.status_code}: {data.get('error', {}).get('message', data)}")
     try:
@@ -550,10 +561,18 @@ def role_hint_from_filename(name):
 
 
 def ingest(filename, blob):
-    """Save an uploaded file and queue it for scoring. Returns (id, is_duplicate)."""
+    """Save an uploaded file and queue it for scoring (its email goes out once scored). Returns (id, is_duplicate)."""
     sha = hashlib.sha256(blob).hexdigest()
     existing = store.by_hash(sha)
     if existing:
+        c = store.get(existing)
+        # Re-uploading a scored candidate who was never emailed sends their email now; nobody is emailed twice.
+        if c["status"] == "done" and not c["sent"] and env("AUTO_SEND", "1") != "0":
+            try:
+                email_candidate(existing, c["decision"] or "hold")
+                store.update(existing, auto_email_error=None)
+            except Exception as e:
+                store.update(existing, auto_email_error=str(e)[:300])
         return existing, True
     cid = uuid.uuid4().hex[:10]
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(filename).name)
@@ -570,7 +589,9 @@ def ingest(filename, blob):
     store.add({"id": cid, "filename": Path(filename).name, "stored_as": stored, "sha": sha, "file_in_cloud": file_in_cloud,
                "uploaded_at": now(), "status": "queued", "error": None,
                "role_hint": role_hint_from_filename(filename), "result": None,
-               "decision": None, "drafts": None, "sent": [], "scoring_started": time.time()})
+               "decision": None, "drafts": None, "sent": [], "scoring_started": time.time(),
+               # new uploads email the candidate as soon as they are scored (AUTO_SEND=0 turns this off)
+               "auto_send": env("AUTO_SEND", "1") != "0"})
     _run(cid)
     return cid, False
 
@@ -604,9 +625,57 @@ def _score_job(cid):
         res = score_cv(text, c["role_hint"])
         decision = {"SHORTLIST": "invite", "NOT MOVING FORWARD": "decline"}.get(res["band"], "hold")
         store.update(cid, status="done", result=res, scored_at=now(),
-                     decision=decision, drafts=res["emails"])
+                     decision=decision, drafts={**res["emails"], "hold": hold_draft(res)})
     except Exception as e:  # surface every failure in the dashboard
+        # auto_send stays pending: a successful Rescore of an upload that was never emailed still sends it
         store.update(cid, status="error", error=str(e)[:500])
+        return
+    if store.get(cid).get("auto_send"):
+        try:
+            email_candidate(cid, decision)
+            store.update(cid, auto_send=False, auto_email_error=None)
+        except Exception as e:  # scoring succeeded; keep the result and show why the email didn't go
+            store.update(cid, auto_send=False, auto_email_error=str(e)[:300])
+
+
+def hold_draft(res):
+    """'Still under review' email for borderline candidates (written here, not by the model, so every borderline gets one)."""
+    cand = res["candidate"]
+    first = (cand.get("name") or "there").split()[0]
+    role = "Senior Product Manager" if cand.get("role_assessed") == "Sr PM" else "Product Manager"
+    company, sender = env("COMPANY_NAME", "Kargo"), env("SENDER_NAME", "Arjun")
+    return {"subject": f"Your application for {role} at {company}",
+            "body": f"Hi {first},\n\nThank you for applying for the {role} role at {company}. "
+                    f"Your application is still under review: we're meeting other candidates over the next couple of weeks "
+                    f"and will get back to you with a decision as soon as we can.\n\n"
+                    f"Thank you for your patience.\n\nBest,\n{sender}\n{company}"}
+
+
+EMAIL_RE = re.compile(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+")
+
+
+def email_candidate(cid, kind, to=None, subject=None, body=None, force=False):
+    """Send the invite / decline / hold email to a candidate and record it. Returns the updated record."""
+    c = store.get(cid)
+    if kind not in ("invite", "decline", "hold"):
+        raise ValueError("kind must be invite, decline or hold")
+    draft = (c.get("drafts") or {}).get(kind) or (hold_draft(c["result"]) if kind == "hold" and c.get("result") else None)
+    if not draft and (subject is None or body is None):
+        raise ValueError("No email draft for this candidate")
+    to = (to if to is not None else (c.get("email_override") or (c.get("result") or {}).get("candidate", {}).get("email") or "")).strip()
+    subject = subject if subject is not None else draft["subject"]
+    body = body if body is not None else draft["body"]
+    if not EMAIL_RE.fullmatch(to):
+        raise ValueError("No valid email address for this candidate")
+    test = bool(test_recipient())
+    if not test and not force and any(not s.get("test") for s in c["sent"]):
+        raise PermissionError("An email was already sent to this candidate")
+    # same key for a repeated click on the same email; a deliberate re-send gets a new one
+    msg_id = send_email(to, subject, body, idempotency_key=f"{cid}-{kind}-{len(c['sent'])}{'-test' if test else ''}")
+    drafts = {**(c.get("drafts") or {}), kind: {"subject": subject, "body": body}}
+    sent = c["sent"] + [{"kind": kind, "to": to, "at": now(), "via": email_provider(), "id": msg_id,
+                         **({"test": True, "delivered_to": test_recipient()} if test else {})}]
+    return store.update(cid, sent=sent, drafts=drafts, decision=kind)
 
 
 # ---------- email ----------
